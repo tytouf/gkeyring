@@ -12,6 +12,7 @@
 __version__ = '0.3.99'
 
 import sys
+import os
 import optparse
 import getpass
 
@@ -99,6 +100,9 @@ When a new keyring item is created, its ID is printed out on the output.'''
             help="don't output the trailing newline")
         out_group.add_option('-1', action='store_true', dest='output1',
             help="same as '--output secret --no-newline'")
+        out_group.add_option('--silent', action='store_true', dest='silent',
+            help="same as '--output secret --no-newline' but the secret is "
+            "copied into the clipboard")
         parser.add_option_group(out_group)
 
         other_group = optparse.OptionGroup(parser, 'Other operations')
@@ -209,7 +213,7 @@ Unlock the default keyring and provide the password 'qux' on the command-line.
         else:
             self.keyring = gk.get_default_keyring_sync()
 
-        if options.output1:
+        if options.output1 or options.silent:
             options.output = 'secret'
             options.no_newline = True
 
@@ -223,6 +227,7 @@ Unlock the default keyring and provide the password 'qux' on the command-line.
         self.item_type = CLI.ITEM_TYPES[options.type]
         self.output = options.output.split(',')
         self.no_newline = options.no_newline
+        self.silent = options.silent
         self.output_attribute_names = options.output_attribute_names
 
         return True
@@ -299,7 +304,13 @@ Unlock the default keyring and provide the password 'qux' on the command-line.
                     out = result['attr'][tab]
 
                 if out:
-                    sys.stdout.write(str(out))
+                    if self.silent:
+                        if os.system('echo "%s" | xsel -i' % str(out)):
+                            print("Make sure xsel is installed.")
+                            return False
+                        print "Secret has been copied into the clipboard."
+                    else:
+                        sys.stdout.write(str(out))
 
         if not self.no_newline:
             print
